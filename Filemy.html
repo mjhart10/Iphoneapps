@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>CatatUang</title>
+    
+    <!-- KONFIGURASI IOS STANDALONE -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CatatUang Pro">
+    
+    <!-- Ikon Aplikasi (Menggunakan ikon umum yang stabil) -->
+    <link rel="apple-touch-icon" href="https://img.icons8.com/fluency/180/wallet.png">
+
+    <!-- Tailwind CSS & Lucide Icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --ios-blue: #007AFF;
+        }
+        body {
+            overscroll-behavior: none;
+            -webkit-tap-highlight-color: transparent;
+            font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+        .modal-active {
+            transform: translateY(0) !important;
+        }
+        /* Animasi halu */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .item-row {
+            animation: fadeIn 0.3s ease forwards;
+        }
+    </style>
+</head>
+<body class="bg-[#F2F2F7]">
+
+    <div id="app" class="flex flex-col h-screen max-w-md mx-auto bg-white shadow-2xl relative overflow-hidden">
+        
+        <!-- Header Ala iOS -->
+        <div class="bg-blue-600 text-white p-6 pt-10 pb-10 rounded-b-[2rem] shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-sm font-medium opacity-80 uppercase tracking-widest">Saldo Pengeluaran</h2>
+                <i data-lucide="wallet" class="opacity-80"></i>
+            </div>
+            <h1 id="total-display" class="text-4xl font-black tracking-tight">Rp 0</h1>
+        </div>
+
+        <!-- Daftar Transaksi -->
+        <div class="flex-1 overflow-y-auto px-5 py-6 space-y-4 pb-32" id="list-container">
+            <!-- Items akan dimuat di sini via JS -->
+        </div>
+
+        <!-- Pesan Error Custom (Tersembunyi) -->
+        <div id="error-box" class="hidden fixed top-10 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-full shadow-2xl z-[100] text-sm font-bold flex items-center space-x-2">
+            <i data-lucide="alert-circle" size="18"></i>
+            <span id="error-message">Terjadi kesalahan</span>
+        </div>
+
+        <!-- Tombol Tambah -->
+        <button onclick="openModal()" class="absolute bottom-10 right-6 w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform z-10">
+            <i data-lucide="plus" size="32"></i>
+        </button>
+
+        <!-- Modal Form -->
+        <div id="modal-overlay" class="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 hidden opacity-0 transition-opacity duration-300">
+            <div id="modal-content" class="absolute bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] p-8 translate-y-full transition-transform duration-300 ease-out">
+                <div class="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
+                <div class="flex justify-between items-center mb-8">
+                    <h3 class="text-2xl font-bold text-gray-800">Catat Baru</h3>
+                    <button onclick="closeModal()" class="bg-gray-100 p-2 rounded-full text-gray-400">
+                        <i data-lucide="x" size="20"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-5">
+                    <div class="group">
+                        <label class="block text-[10px] font-bold text-gray-400 mb-1 ml-1 uppercase">Nama Barang</label>
+                        <input type="text" id="title" placeholder="Misal: Nasi Padang" class="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-blue-500 transition-colors">
+                    </div>
+                    
+                    <div class="group">
+                        <label class="block text-[10px] font-bold text-gray-400 mb-1 ml-1 uppercase">Nominal (Rp)</label>
+                        <input type="number" id="amount" placeholder="0" class="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-xl">
+                    </div>
+
+                    <button onclick="handleAdd()" class="w-full bg-blue-600 text-white font-bold py-5 rounded-2xl mt-4 shadow-lg active:scale-95 transition-transform flex items-center justify-center space-x-2">
+                        <span>Simpan Sekarang</span>
+                        <i data-lucide="check" size="18"></i>
+                    </button>
+                </div>
+                <div class="h-10"></div> <!-- Spacer buat keyboard iOS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Cek localStorage agar tidak error di mode private
+        let storageAvailable = true;
+        try {
+            localStorage.setItem('test', '1');
+            localStorage.removeItem('test');
+        } catch(e) {
+            storageAvailable = false;
+        }
+
+        let expenses = [];
+        if(storageAvailable) {
+            expenses = JSON.parse(localStorage.getItem('expenses_v2')) || [];
+        }
+
+        function showError(msg) {
+            const box = document.getElementById('error-box');
+            document.getElementById('error-message').innerText = msg;
+            box.classList.remove('hidden');
+            setTimeout(() => box.classList.add('hidden'), 3000);
+        }
+
+        function render() {
+            const list = document.getElementById('list-container');
+            const display = document.getElementById('total-display');
+            list.innerHTML = '';
+            let total = 0;
+
+            if (expenses.length === 0) {
+                list.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-20 opacity-30">
+                        <i data-lucide="inbox" size="64" class="mb-4"></i>
+                        <p class="font-medium">Belum ada catatan</p>
+                    </div>
+                `;
+            }
+
+            expenses.forEach((item, i) => {
+                total += item.amount;
+                const card = document.createElement('div');
+                card.className = "item-row flex items-center justify-between p-5 bg-white rounded-2xl shadow-sm border border-gray-100";
+                card.innerHTML = `
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                            <i data-lucide="shopping-bag" size="22"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800 text-sm">${item.title}</h4>
+                            <p class="text-[10px] text-gray-400 font-medium">${new Date(item.id).toLocaleDateString('id-ID')}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span class="font-black text-red-500 text-sm">-${formatIDR(item.amount)}</span>
+                        <button onclick="deleteItem(${i})" class="p-2 text-gray-200 hover:text-red-400 transition-colors">
+                            <i data-lucide="trash-2" size="18"></i>
+                        </button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+
+            display.innerText = formatIDR(total);
+            if(storageAvailable) localStorage.setItem('expenses_v2', JSON.stringify(expenses));
+            lucide.createIcons();
+        }
+
+        function handleAdd() {
+            const t = document.getElementById('title').value;
+            const a = document.getElementById('amount').value;
+
+            if(!t || !a) return showError("Isi nama dan nominal!");
+            
+            expenses.unshift({
+                id: Date.now(),
+                title: t,
+                amount: parseInt(a)
+            });
+
+            document.getElementById('title').value = '';
+            document.getElementById('amount').value = '';
+            closeModal();
+            render();
+        }
+
+        function deleteItem(index) {
+            expenses.splice(index, 1);
+            render();
+        }
+
+        function formatIDR(v) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v);
+        }
+
+        // Modal Logic
+        function openModal() {
+            const overlay = document.getElementById('modal-overlay');
+            const content = document.getElementById('modal-content');
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.style.opacity = "1";
+                content.classList.add('modal-active');
+            }, 10);
+        }
+
+        function closeModal() {
+            const overlay = document.getElementById('modal-overlay');
+            const content = document.getElementById('modal-content');
+            overlay.style.opacity = "0";
+            content.classList.remove('modal-active');
+            setTimeout(() => overlay.classList.add('hidden'), 300);
+        }
+
+        window.onload = () => {
+            render();
+            if(!storageAvailable) showError("Mode Private aktif! Data tidak akan tersimpan.");
+        };
+    </script>
+</body>
+</html>
+
