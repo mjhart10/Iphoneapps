@@ -1,0 +1,193 @@
+import React, { useState, useMemo } from 'react';
+import { Plus, Trash2, Wallet, ShoppingCart, Car, Coffee, Utensils, MoreHorizontal } from 'lucide-react';
+
+const App = () => {
+  const [items, setItems] = useState([
+    { id: 1, title: 'Kopi Pagi', amount: 25000, category: 'Food', date: '2023-10-25' },
+    { id: 2, title: 'Bensin', amount: 50000, category: 'Transport', date: '2023-10-25' },
+  ]);
+
+  const [title, setTitle] = useState('');
+  const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState('Food');
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  // Kategori dengan ikon dan warna
+  const categories = {
+    Food: { icon: <Utensils size={18} />, color: 'bg-orange-100 text-orange-600' },
+    Transport: { icon: <Car size={18} />, color: 'bg-blue-100 text-blue-600' },
+    Shopping: { icon: <ShoppingCart size={18} />, color: 'bg-purple-100 text-purple-600' },
+    Other: { icon: <MoreHorizontal size={18} />, color: 'bg-gray-100 text-gray-600' },
+  };
+
+  const totalExpense = useMemo(() => {
+    return items.reduce((sum, item) => sum + Number(item.amount), 0);
+  }, [items]);
+
+  const addItem = (e) => {
+    e.preventDefault();
+    if (!title || !amount) return;
+
+    const newItem = {
+      id: Date.now(),
+      title,
+      amount: parseFloat(amount),
+      category,
+      date: new Date().toLocaleDateString('id-ID'),
+    };
+
+    setItems([newItem, ...items]);
+    setTitle('');
+    setAmount('');
+    setShowAddModal(false);
+  };
+
+  const deleteItem = (id) => {
+    setItems(items.filter(item => item.id !== id));
+  };
+
+  const formatIDR = (val) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0,
+    }).format(val);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex justify-center items-start p-4 font-sans">
+      <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-gray-900 min-h-[700px] relative">
+        
+        {/* Header Section */}
+        <div className="bg-blue-600 p-8 pt-12 text-white rounded-b-[2rem] shadow-lg">
+          <p className="text-blue-100 text-sm font-medium">Total Pengeluaran</p>
+          <h1 className="text-3xl font-bold mt-1 tracking-tight">
+            {formatIDR(totalExpense)}
+          </h1>
+          <div className="flex items-center mt-4 bg-blue-500/30 w-fit px-3 py-1 rounded-full text-xs">
+            <Wallet size={14} className="mr-1" />
+            <span>Kelola Keuanganmu</span>
+          </div>
+        </div>
+
+        {/* List Section */}
+        <div className="p-6 pb-24">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-bold text-gray-800 text-lg">Riwayat Transaksi</h2>
+            <span className="text-xs text-gray-400 font-medium">BARU SAJA</span>
+          </div>
+
+          <div className="space-y-4">
+            {items.length === 0 ? (
+              <div className="text-center py-10">
+                <p className="text-gray-400 italic">Belum ada pengeluaran.</p>
+              </div>
+            ) : (
+              items.map((item) => (
+                <div 
+                  key={item.id} 
+                  className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow group"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className={`p-3 rounded-xl ${categories[item.category].color}`}>
+                      {categories[item.category].icon}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-800 text-sm">{item.title}</h3>
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wider">{item.category}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <span className="font-bold text-red-500 text-sm">-{formatIDR(item.amount)}</span>
+                    <button 
+                      onClick={() => deleteItem(item.id)}
+                      className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Floating Add Button */}
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="absolute bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-transform z-10"
+        >
+          <Plus size={32} />
+        </button>
+
+        {/* Modal Entry */}
+        {showAddModal && (
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-20 flex items-end">
+            <div className="w-full bg-white rounded-t-[2rem] p-8 animate-in slide-in-from-bottom duration-300">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Tambah Catatan</h3>
+                <button onClick={() => setShowAddModal(false)} className="text-gray-400">Tutup</button>
+              </div>
+              
+              <form onSubmit={addItem} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 mb-1">NAMA PENGELUARAN</label>
+                  <input 
+                    type="text" 
+                    placeholder="Contoh: Makan Siang"
+                    className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 mb-1">NOMINAL (IDR)</label>
+                  <input 
+                    type="number" 
+                    placeholder="0"
+                    className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 mb-1">KATEGORI</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {Object.keys(categories).map(cat => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setCategory(cat)}
+                        className={`p-2 text-[10px] font-bold rounded-lg border transition-all ${
+                          category === cat 
+                          ? 'border-blue-500 bg-blue-50 text-blue-600' 
+                          : 'border-gray-200 text-gray-400'
+                        }`}
+                      >
+                        {cat.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button 
+                  type="submit"
+                  className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl mt-4 shadow-lg active:scale-95 transition-transform"
+                >
+                  Simpan Transaksi
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default App;
+
